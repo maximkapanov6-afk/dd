@@ -1,108 +1,170 @@
-$ErrorActionPreference='SilentlyContinue'
-[Console]::OutputEncoding=[Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle='System Scanner v3.0'
-mode con: cols=100 lines=40 | Out-Null
-$Host.UI.RawUI.BackgroundColor='Black'
-[Console]::CursorVisible=$false
-Clear-Host
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
-$F=[string][char]0x2588; $E=[string][char]0x2591
-$tl=[string][char]0x2554; $tr=[string][char]0x2557
-$bl=[string][char]0x255A; $br=[string][char]0x255D
-$v=[string][char]0x2551; $hz=[string][char]0x2550
-$line=$hz*94
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class Win32 {
+  [DllImport("Gdi32.dll")] public static extern IntPtr CreateRoundRectRgn(int l,int t,int r,int b,int w,int h);
+  [DllImport("user32.dll")] public static extern bool ReleaseCapture();
+  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,int m,int w,int l);
+}
+'@
 
-function W($x,$y,$t,$c){
-  [Console]::SetCursorPosition($x,$y)
-  Write-Host $t -NoNewline -ForegroundColor $c
+$Host.UI.RawUI.WindowTitle='Powershell Scanner'
+Write-Host 'DO NOT CLOSE THIS CONSOLE BEFORE SCAN IS COMPLETE' -ForegroundColor Red
+
+function Col($r,$g,$b){ [System.Drawing.Color]::FromArgb($r,$g,$b) }
+$bg    = Col 8 16 34
+$cyan  = Col 34 211 238
+$track = Col 28 34 46
+$gray  = Col 170 170 170
+$green = Col 74 222 128
+$dim   = Col 70 85 110
+
+$W=520; $H=410
+$form=New-Object System.Windows.Forms.Form
+$form.FormBorderStyle='None'
+$form.StartPosition='CenterScreen'
+$form.Size=New-Object System.Drawing.Size($W,$H)
+$form.BackColor=$bg
+$form.TopMost=$true
+$form.Text='System Scanner'
+$form.Region=[System.Drawing.Region]::FromHrgn([Win32]::CreateRoundRectRgn(0,0,$W+1,$H+1,18,18))
+
+$drag={ [void][Win32]::ReleaseCapture(); [void][Win32]::SendMessage($form.Handle,0xA1,2,0) }
+$form.Add_MouseDown($drag)
+
+$title=New-Object System.Windows.Forms.Label
+$title.Text=':: SYSTEM SCANNER ::'
+$title.ForeColor=$cyan
+$title.Font=New-Object System.Drawing.Font('Consolas',9,[System.Drawing.FontStyle]::Bold)
+$title.AutoSize=$true
+$title.Location=New-Object System.Drawing.Point(16,12)
+$title.Add_MouseDown($drag)
+$form.Controls.Add($title)
+
+$min=New-Object System.Windows.Forms.Label
+$min.Text=[string][char]0x2014
+$min.ForeColor=[System.Drawing.Color]::White
+$min.Font=New-Object System.Drawing.Font('Segoe UI',10,[System.Drawing.FontStyle]::Bold)
+$min.AutoSize=$true
+$min.Cursor=[System.Windows.Forms.Cursors]::Hand
+$min.Location=New-Object System.Drawing.Point(($W-38),8)
+$min.Add_Click({ $form.WindowState='Minimized' })
+$form.Controls.Add($min)
+
+$head=New-Object System.Windows.Forms.Label
+$head.Text='SCANNING IN PROGRESS'
+$head.ForeColor=[System.Drawing.Color]::White
+$head.Font=New-Object System.Drawing.Font('Segoe UI',18,[System.Drawing.FontStyle]::Bold)
+$head.TextAlign='MiddleCenter'
+$head.Size=New-Object System.Drawing.Size($W,44)
+$head.Location=New-Object System.Drawing.Point(0,50)
+$head.Add_MouseDown($drag)
+$form.Controls.Add($head)
+
+$trackP=New-Object System.Windows.Forms.Panel
+$trackP.BackColor=$track
+$trackP.Size=New-Object System.Drawing.Size(460,6)
+$trackP.Location=New-Object System.Drawing.Point(30,108)
+$form.Controls.Add($trackP)
+
+$fill=New-Object System.Windows.Forms.Panel
+$fill.BackColor=$cyan
+$fill.Size=New-Object System.Drawing.Size(0,6)
+$fill.Location=New-Object System.Drawing.Point(0,0)
+$trackP.Controls.Add($fill)
+
+$pctL=New-Object System.Windows.Forms.Label
+$pctL.Text='0%'
+$pctL.ForeColor=$cyan
+$pctL.Font=New-Object System.Drawing.Font('Segoe UI',9)
+$pctL.TextAlign='MiddleRight'
+$pctL.Size=New-Object System.Drawing.Size(100,20)
+$pctL.Location=New-Object System.Drawing.Point(390,118)
+$form.Controls.Add($pctL)
+
+$rtb=New-Object System.Windows.Forms.RichTextBox
+$rtb.BackColor=[System.Drawing.Color]::Black
+$rtb.ForeColor=$gray
+$rtb.Font=New-Object System.Drawing.Font('Consolas',9)
+$rtb.BorderStyle='None'
+$rtb.ReadOnly=$true
+$rtb.TabStop=$false
+$rtb.Size=New-Object System.Drawing.Size(460,190)
+$rtb.Location=New-Object System.Drawing.Point(30,148)
+$form.Controls.Add($rtb)
+
+$btn=New-Object System.Windows.Forms.Button
+$btn.Text='COMPLETE'
+$btn.FlatStyle='Flat'
+$btn.FlatAppearance.BorderSize=0
+$btn.BackColor=$cyan
+$btn.ForeColor=[System.Drawing.Color]::Black
+$btn.Font=New-Object System.Drawing.Font('Segoe UI',10,[System.Drawing.FontStyle]::Bold)
+$btn.Size=New-Object System.Drawing.Size(160,36)
+$btn.Location=New-Object System.Drawing.Point(180,352)
+$btn.Cursor=[System.Windows.Forms.Cursors]::Hand
+$btn.Visible=$false
+$btn.Add_Click({ $form.Close() })
+$form.Controls.Add($btn)
+
+$foot=New-Object System.Windows.Forms.Label
+$foot.Text='engine v3.0  |  secure mode'
+$foot.ForeColor=$dim
+$foot.Font=New-Object System.Drawing.Font('Consolas',8)
+$foot.AutoSize=$true
+$foot.Location=New-Object System.Drawing.Point(16,386)
+$form.Controls.Add($foot)
+
+function Log($t,$c){
+  $rtb.SelectionStart=$rtb.TextLength
+  $rtb.SelectionLength=0
+  $rtb.SelectionColor=$c
+  $rtb.AppendText($t+"`r`n")
+  $rtb.ScrollToCaret()
 }
 
-# ---------- banner ----------
-$L=@{
- S=@(' ____  ','/ ___| ','\___ \ ',' ___) |','|____/ ')
- C=@('  ____ ',' / ___|','| |    ','| |___ ',' \____|')
- A=@('    _    ','   / \   ','  / _ \  ',' / ___ \ ','/_/   \_\')
- N=@(' _   _ ','| \ | |','|  \| |','| |\  |','|_| \_|')
- E=@(' _____ ','| ____|','|  _|  ','| |___ ','|_____|')
- R=@(' ____  ','|  _ \ ','| |_) |','|  _ < ','|_| \_\')
-}
-$grad='Cyan','Cyan','Cyan','DarkCyan','DarkCyan'
-Write-Host ''
-for($r=0;$r -lt 5;$r++){
-  $s=''
-  foreach($ch in 'SCANNER'.ToCharArray()){
-    $a=$L[[string]$ch]
-    $w=($a | ForEach-Object {$_.Length} | Measure-Object -Maximum).Maximum
-    $s+=$a[$r].PadRight($w)
+$msgs=@(
+  @(0,  '> Scanner initialized. Starting scan...'),
+  @(8,  '> Verifying digital signatures...'),
+  @(18, '> Checking for external drivers...'),
+  @(30, '> Inspecting running processes...'),
+  @(42, '> Scanning startup entries...'),
+  @(55, '> Analyzing memory allocation...'),
+  @(68, '> Checking system services...'),
+  @(80, '> Reviewing registry integrity...'),
+  @(92, '> Finalizing verification...')
+)
+$script:pct=0.0
+$script:mi=0
+$script:done=$false
+
+$timer=New-Object System.Windows.Forms.Timer
+$timer.Interval=80
+$timer.Add_Tick({
+  if($script:done){ return }
+  $script:pct=[Math]::Min(100.0,$script:pct+(Get-Random -Minimum 3 -Maximum 12)/10.0)
+  while($script:mi -lt $msgs.Count -and $script:pct -ge $msgs[$script:mi][0]){
+    Log $msgs[$script:mi][1] $gray
+    $script:mi++
   }
-  Write-Host ('   '+$s) -ForegroundColor $grad[$r]
-}
-Write-Host ''
-Write-Host ('  '+$line) -ForegroundColor DarkGray
-Write-Host '   Deep protection engine   |   v3.0   |   real-time analysis' -ForegroundColor Gray
-Write-Host ('  '+$line) -ForegroundColor DarkGray
-Write-Host ''
-
-# ---------- init ----------
-foreach($t in 'Initializing scan engine','Loading threat definitions','Preparing system snapshot'){
-  Write-Host ("   $t".PadRight(48)) -NoNewline -ForegroundColor Gray
-  Start-Sleep -m 450
-  Write-Host '[ OK ]' -ForegroundColor Green
-}
-Write-Host ''
-
-# ---------- modules list ----------
-$stages='Memory','Startup items','System files','Registry','Drivers','Browser data','User documents'
-Write-Host '   SCAN MODULES' -ForegroundColor White
-$ys=[Console]::CursorTop
-foreach($s in $stages){
-  Write-Host ("   [ ..  ]  $s") -ForegroundColor DarkGray
-}
-Write-Host ''
-$yp=[Console]::CursorTop
-1..5 | ForEach-Object { Write-Host '' }
-
-$roots=@('C:\Windows\System32','C:\Windows\SysWOW64','C:\Windows\System32\drivers','C:\Program Files\Common Files',
-         'C:\Program Files (x86)','C:\ProgramData',"$env:APPDATA","$env:LOCALAPPDATA\Temp","$env:USERPROFILE\Documents","$env:USERPROFILE\Downloads")
-$exts='.dll','.sys','.exe','.dat','.tmp','.cfg'
-$sp='|','/','-','\'
-$steps=40
-$total=0
-
-for($s=0;$s -lt $stages.Count;$s++){
-  $n=Get-Random -Minimum 900 -Maximum 4200
-  W 3 ($ys+$s) '[ >>  ]' Yellow
-  W 12 ($ys+$s) $stages[$s] White
-  for($i=0;$i -le $steps;$i++){
-    $pct=[int]($i*100/$steps)
-    $bar=($F*$i)+($E*($steps-$i))
-    $op=[int](($s*$steps+$i)*100/($stages.Count*$steps))
-    $obar=($F*[int]($op/100*40))+($E*(40-[int]($op/100*40)))
-    $name=-join ((1..8)|ForEach-Object {'abcdef0123456789'[(Get-Random -Maximum 16)]})
-    $file=(($roots|Get-Random)+'\'+$name+($exts|Get-Random))
-    if($file.Length -gt 84){$file=$file.Substring(0,84)}
-    W 3 $yp ("$($sp[$i%4])  Scanning: $($stages[$s])").PadRight(90) Cyan
-    W 3 ($yp+1) ("[$bar] "+("$pct%").PadLeft(4)).PadRight(90) Cyan
-    W 3 ($yp+2) ("   $file").PadRight(90) DarkGray
-    W 3 ($yp+3) ("Overall  [$obar] "+("$op%").PadLeft(4)).PadRight(90) DarkCyan
-    Start-Sleep -m (Get-Random -Minimum 15 -Maximum 55)
+  $fill.Width=[int](460*$script:pct/100)
+  $pctL.Text=('{0}%' -f [int]$script:pct)
+  if($script:pct -ge 100){
+    $script:done=$true
+    $timer.Stop()
+    Log '> Success: No threats found.' $green
+    Log '> System is clean.' $green
+    $head.Text='SCAN COMPLETE'
+    $head.ForeColor=$green
+    $btn.Visible=$true
   }
-  $total+=$n
-  W 3 ($ys+$s) '[  OK ]' Green
-  W 12 ($ys+$s) ($stages[$s].PadRight(22)+('{0:N0} items' -f $n)) Gray
-}
+})
 
-# ---------- result ----------
-for($k=0;$k -lt 5;$k++){ W 0 ($yp+$k) (' '*98) Gray }
-[Console]::SetCursorPosition(0,$yp)
-function Box($t,$c){ Write-Host ('  '+$v+$t.PadRight(60)+$v) -ForegroundColor $c }
-Write-Host ('  '+$tl+($hz*60)+$tr) -ForegroundColor Green
-Box '                    SCAN COMPLETE' Green
-Box '' Green
-Box ('   Items checked : {0:N0}' -f $total) Green
-Box '   Threats found : 0' Green
-Box '   Status        : your system is clean' Green
-Write-Host ('  '+$bl+($hz*60)+$br) -ForegroundColor Green
-Write-Host ''
-[Console]::CursorVisible=$true
-Read-Host '   Press Enter to close'
+$form.Add_Shown({ $form.Activate(); $timer.Start() })
+$form.Add_FormClosed({ $timer.Stop() })
+[void]$form.ShowDialog()
+Write-Host 'Scan finished.' -ForegroundColor Green
